@@ -1,4 +1,4 @@
-**# Shooter Sam — Learning Log
+# Shooter Sam — Learning Log
 
 Progetto realizzato seguendo un corso di Unreal Engine 5. È un third-person shooter in cui il giocatore controlla un personaggio armato che affronta nemici controllati da un'AI basata su Behavior Tree. Il progetto è costruito a partire dal template Third Person di UE5.
 
