@@ -1,74 +1,74 @@
 # Shooter Sam — Learning Log
 
-Progetto realizzato seguendo un corso di Unreal Engine 5. È un third-person shooter in cui il giocatore controlla un personaggio armato che affronta nemici controllati da un'AI basata su Behavior Tree. Il progetto è costruito a partire dal template Third Person di UE5.
+Project built while following an Unreal Engine 5 course. It's a third-person shooter where the player controls an armed character facing enemies driven by a Behavior Tree AI. Built on top of the UE5 Third Person template.
 
 **Engine:** Unreal Engine 5  
-**Linguaggio:** C++ + Blueprint  
-**Moduli UE aggiuntivi:** UMG (UI), EnhancedInput, Niagara, AIModule, GameplayTasks
+**Language:** C++ + Blueprint  
+**Additional UE Modules:** UMG (UI), EnhancedInput, Niagara, AIModule, GameplayTasks
 
 ---
 
-## Il Gioco
+## The Game
 
-Il giocatore si muove in terza persona, mira con il mouse e spara con un'arma attaccata al personaggio. I nemici AI pattugliano l'area, inseguono il giocatore quando lo vedono e sparano quando sono in range. La barra della vita è visibile sull'HUD.
+The player moves in third person, aims with the mouse and shoots with a weapon attached to the character. AI enemies patrol the area, chase the player when spotted and shoot when in range. A health bar is visible on the HUD.
 
-### Controlli
+### Controls
 
-| Input | Azione |
+| Input | Action |
 |---|---|
-| WASD | Movimento |
-| Mouse | Ruota la camera |
-| Click Sinistro | Spara |
-| Spazio | Salta |
+| WASD | Move |
+| Mouse | Rotate camera |
+| Left Click | Shoot |
+| Space | Jump |
 
 ---
 
-## Architettura delle Classi
+## Class Architecture
 
 ```
 ACharacter
-└── AShooterSamCharacter         ← personaggio base condiviso da player e AI
+└── AShooterSamCharacter         ← base character shared by player and AI
 
 APlayerController
-└── AShooterSamPlayerController  ← gestisce IMC e HUD
+└── AShooterSamPlayerController  ← manages IMC and HUD
 
 AAIController
-└── AShooterAI                   ← avvia il Behavior Tree, espone riferimenti al personaggio
+└── AShooterAI                   ← starts the Behavior Tree, exposes character references
 
 AActor
-└── AGun                         ← arma: line trace, danno, effetti
+└── AGun                         ← weapon: line trace, damage, effects
 
 UGameModeBase
-└── AShooterSamGameMode          ← avvia i Behavior Tree di tutti i nemici al BeginPlay
+└── AShooterSamGameMode          ← starts all enemy Behavior Trees on BeginPlay
 
 UUserWidget
-└── UHUDWidget                   ← barra della vita del giocatore
+└── UHUDWidget                   ← player health bar
 
 UBTTaskNode
-└── UBTTaskNode_Shoot            ← Task BT: ordina al personaggio AI di sparare
+└── UBTTaskNode_Shoot            ← BT Task: orders the AI character to shoot
 
 UBTTask_BlackboardBase
-└── UBTTask_ClearBlackboardValue ← Task BT: cancella un valore dal Blackboard
+└── UBTTask_ClearBlackboardValue ← BT Task: clears a value from the Blackboard
 
 UBTService_BlackboardBase
-├── UBTService_PlayerLocation          ← Service BT: aggiorna posizione player ogni tick
-└── UBTService_PlayerLocationIfSeen    ← Service BT: aggiorna posizione solo se in line of sight
+├── UBTService_PlayerLocation          ← BT Service: updates player location every tick
+└── UBTService_PlayerLocationIfSeen    ← BT Service: updates location only if in line of sight
 ```
 
 ---
 
-## Concetti Appresi
+## Concepts Learned
 
-### Behavior Tree e Blackboard
+### Behavior Tree and Blackboard
 
-Il sistema AI di UE5 è basato su due asset separati: il **Behavior Tree** (l'albero decisionale) e il **Blackboard** (una memoria chiave-valore condivisa tra il BT e l'AIController). L'AI legge e scrive sul Blackboard per prendere decisioni. Ad esempio, `BTService_PlayerLocation` scrive la posizione del giocatore ogni tick, e il BT usa quel valore per decidere se inseguire o pattugliare.
+UE5's AI system is based on two separate assets: the **Behavior Tree** (the decision tree) and the **Blackboard** (a key-value memory shared between the BT and the AIController). The AI reads and writes to the Blackboard to make decisions. For example, `BTService_PlayerLocation` writes the player's position every tick, and the BT uses that value to decide whether to chase or patrol.
 
-### BTService: aggiornamento continuo
+### BTService: Continuous Updates
 
-I **Services** sono nodi del BT che eseguono logica a intervalli regolari finché il loro ramo è attivo. Si estende `UBTService_BlackboardBase` e si fa override di `TickNode`. In questo progetto ci sono due service con comportamento diverso:
+**Services** are BT nodes that execute logic at regular intervals while their branch is active. You extend `UBTService_BlackboardBase` and override `TickNode`. This project has two services with different behavior:
 
-- `BTService_PlayerLocation` aggiorna la posizione del player **sempre**
-- `BTService_PlayerLocationIfSeen` aggiorna la posizione **solo se il nemico ha line of sight** sul player, altrimenti cancella il valore — questo permette al BT di distinguere "so dove sei" da "ti ho perso di vista"
+- `BTService_PlayerLocation` updates the player position **always**
+- `BTService_PlayerLocationIfSeen` updates the position **only if the enemy has line of sight** on the player, otherwise clears the value — this lets the BT distinguish between "I know where you are" and "I've lost you"
 
 ```cpp
 if (OwnerController->LineOfSightTo(Player))
@@ -83,11 +83,11 @@ else
 }
 ```
 
-### BTTask: azioni atomiche
+### BTTask: Atomic Actions
 
-I **Tasks** sono le foglie del Behavior Tree — eseguono un'azione e restituiscono `Succeeded` o `Failed`. Si estende `UBTTaskNode` (o `UBTTask_BlackboardBase` se si lavora con una chiave del Blackboard) e si fa override di `ExecuteTask`.
+**Tasks** are the leaves of the Behavior Tree — they execute an action and return `Succeeded` or `Failed`. You extend `UBTTaskNode` (or `UBTTask_BlackboardBase` when working with a Blackboard key) and override `ExecuteTask`.
 
-`BTTaskNode_Shoot` recupera il riferimento al personaggio AI tramite l'AIController e chiama `Shoot()` solo se il player è ancora vivo:
+`BTTaskNode_Shoot` retrieves the AI character reference through the AIController and calls `Shoot()` only if the player is still alive:
 
 ```cpp
 if (OwnerCharacter && PlayerCharacter && PlayerCharacter->IsAlive)
@@ -97,11 +97,11 @@ if (OwnerCharacter && PlayerCharacter && PlayerCharacter->IsAlive)
 }
 ```
 
-`BTTask_ClearBlackboardValue` è un task generico riutilizzabile che cancella qualsiasi chiave del Blackboard selezionata nell'editor, senza hardcodare il nome della chiave.
+`BTTask_ClearBlackboardValue` is a generic reusable task that clears any Blackboard key selected in the editor, without hardcoding the key name.
 
 ### Line Trace (Hitscan)
 
-`AGun::PullTrigger` usa un **line trace** invece di spawnare un proiettile fisico. Il raggio parte dal ViewPoint del controller e va nella direzione della camera per `MaxRange` unità. Questo approccio è detto **hitscan** ed è comune negli sparatutto perché è più prevedibile e performante dei proiettili fisici.
+`AGun::PullTrigger` uses a **line trace** instead of spawning a physical projectile. The ray starts from the controller's ViewPoint and travels in the camera direction for `MaxRange` units. This approach is called **hitscan** and is common in shooters because it's more predictable and performant than physical projectiles.
 
 ```cpp
 OwnerController->GetPlayerViewPoint(ViewPointLocation, ViewPointRotation);
@@ -109,11 +109,11 @@ FVector EndLocation = ViewPointLocation + ViewPointRotation.Vector() * MaxRange;
 bool IsHit = GetWorld()->LineTraceSingleByChannel(HitResult, ViewPointLocation, EndLocation, ECC_GameTraceChannel2, Params);
 ```
 
-Si noti l'uso di `ECC_GameTraceChannel2`: un **custom collision channel** definito nel progetto per filtrare cosa può essere colpito dai proiettili, separato dalla visibilità generica.
+Note the use of `ECC_GameTraceChannel2`: a **custom collision channel** defined in the project to filter what can be hit by bullets, separate from general visibility.
 
-### Gun come Actor separato attaccato al socket
+### Gun as a Separate Actor Attached to a Socket
 
-L'arma è un `AActor` indipendente (`AGun`) spawnato in `BeginPlay` e attaccato alla mesh del personaggio tramite un socket nominato (`WeaponSocket`). L'osso dell'arma nella mano viene nascosto con `HideBoneByName` per evitare la doppia mesh.
+The weapon is an independent `AActor` (`AGun`) spawned in `BeginPlay` and attached to the character mesh via a named socket (`WeaponSocket`). The weapon bone in the hand is hidden with `HideBoneByName` to avoid double mesh.
 
 ```cpp
 GetMesh()->HideBoneByName("weapon_r", EPhysBodyOp::PBO_None);
@@ -121,15 +121,15 @@ Gun = GetWorld()->SpawnActor<AGun>(GunClass);
 Gun->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("WeaponSocket"));
 ```
 
-### HUD con ProgressBar e BindWidget
+### HUD with ProgressBar and BindWidget
 
-`UHUDWidget` usa una `UProgressBar` con `meta = (BindWidgetOptional)`: la variante "Optional" significa che il widget non crasha se il componente non è presente nel Blueprint, rendendola più robusta durante lo sviluppo. Il metodo `SetHealthBarPercent` valida il range `[0, 1]` prima di applicarlo.
+`UHUDWidget` uses a `UProgressBar` with `meta = (BindWidgetOptional)`: the "Optional" variant means the widget won't crash if the component is missing in the Blueprint, making it more robust during development. The `SetHealthBarPercent` method validates the `[0, 1]` range before applying it.
 
-Il personaggio aggiorna l'HUD chiamando `UpdateHUD()` ogni volta che subisce danno, castando il proprio controller a `AShooterSamPlayerController` per accedere all'istanza del widget.
+The character updates the HUD by calling `UpdateHUD()` every time it takes damage, casting its controller to `AShooterSamPlayerController` to access the widget instance.
 
-### Gestione della morte senza Destroy
+### Handling Death Without Destroy
 
-Quando gli HP arrivano a zero il personaggio non viene distrutto ma disabilitato:
+When HP reaches zero the character is not destroyed but disabled:
 
 ```cpp
 IsAlive = false;
@@ -138,4 +138,23 @@ GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 DetachFromControllerPendingDestroy();
 ```
 
-`DetachFromControllerPendingDestroy()` stacca il controller dal pawn lasciando il mesh visibile nella scena. `IsAlive` è `BlueprintReadOnly` così può essere letto dai Blueprint senza essere modificabile dall'esterno.
+`DetachFromControllerPendingDestroy()` detaches the controller from the pawn leaving the mesh visible in the scene. `IsAlive` is `BlueprintReadOnly` so it can be read by Blueprints without being modifiable from outside.
+
+### GameMode with Range-Based For Loop
+
+`AShooterSamGameMode::BeginPlay` shows in code comments the evolution of three equivalent approaches to iterate an array: `while` with manual index, `for` with index, and finally the **C++11 range-based for loop** which is the most readable and the one definitively adopted.
+
+```cpp
+for (AActor* ShooterAIActor : ShooterAIActors)
+{
+    AShooterAI* ShooterAI = Cast<AShooterAI>(ShooterAIActor);
+    if (ShooterAI)
+    {
+        ShooterAI->StartBehaviorTree(Player);
+    }
+}
+```
+
+### Custom Log Category
+
+The project defines a custom log category (`LogShooterSam`) in `ShooterSam.h` with `DECLARE_LOG_CATEGORY_EXTERN` and registers it in `ShooterSam.cpp` with `DEFINE_LOG_CATEGORY`. Using it instead of `LogTemp` allows filtering logs by category in the editor's Output Log.
